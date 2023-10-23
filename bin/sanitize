@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+
+const fs = require('fs');
 const { sanitize } = require('../dist/index.js');
 
 async function read(stream) {
@@ -8,7 +10,11 @@ async function read(stream) {
 }
 
 (async function() {
-  const input = JSON.parse(await read(process.stdin));
+
+  const inputStr = process.argv[2] ?
+    fs.readFileSync(process.argv[2], 'utf8') :
+    await read(process.stdin);
+  const input = JSON.parse(inputStr);
   const output = await sanitize(input);
   process.stdout.write(JSON.stringify(output, null, 2));
   process.stdout.write('\n');
