@@ -2,6 +2,8 @@ import fs from 'fs';
 import simpleCookie from 'simple-cookie';
 import { sanitize } from '../src';
 import { Har } from '../src/har';
+import { version, name } from '../package.json';
+
 
 const example = JSON.parse(fs.readFileSync('__test__/example.har', 'utf8')) as Har;
 
@@ -29,7 +31,6 @@ describe('sanitizer', () => {
     const actual = sanitized.log.entries[0].request.headers.find(h => h.name === 'Cookie');
     const unsanitized = example.log.entries[0].request.headers.find(h => h.name === 'Cookie');
     expect(actual).not.toEqual(unsanitized);
-    console.dir([actual, unsanitized])
   });
 
   it('should sanitize cookies array on request', async () => {
@@ -48,5 +49,10 @@ describe('sanitizer', () => {
     const actual = sanitized.log.entries[1].request.headers.find(h => h.name.toLowerCase() === 'authorization');
     const unsanitized = example.log.entries[1].request.headers.find(h => h.name.toLowerCase() === 'authorization');
     expect(actual).not.toEqual(unsanitized);
+  });
+
+  it('should change the creator', () => {
+    expect(sanitized.log.creator.name).toEqual(name);
+    expect(sanitized.log.creator.version).toEqual(version);
   });
 });

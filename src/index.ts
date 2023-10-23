@@ -1,7 +1,8 @@
 import simpleCookie from "simple-cookie";
-import { getRandomValues } from "uncrypto";
 import { Har, HarEntry, HarHeader } from "./har";
 import { getSHA256Hash, getSalt } from "./util";
+import { name as pkgName, version as pkgVersion } from "../package.json";
+
 
 async function sanitizeAuthorizationHeader(h: HarHeader, salt: string) {
   const [scheme, value] = h.value.split(/\s(.+)/);
@@ -64,7 +65,15 @@ const sanitizeEntry = async (salt: string, entry: HarEntry): Promise<HarEntry> =
 export const sanitize = async (har: Har, options: { salt: boolean } = { salt: true }): Promise<Har> => {
   const salt = options.salt ? getSalt() : '';
   const entries = await Promise.all(har.log.entries.map(async e => await sanitizeEntry(salt, e)));
-  return { ...har, log: { ...har.log, entries } };
+
+  return {
+    ...har,
+    log: {
+      ...har.log,
+      creator: { name: pkgName, version: pkgVersion },
+      entries
+    }
+  };
 };
 
 
