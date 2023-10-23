@@ -6,7 +6,7 @@
   "bin": "bin/sanitize",
   "scripts": {
     "test": "jest",
-    "prepare": "tsc",
+    "prepare": "rm -rf dist ; tsc --build src",
     "compile": "pkg . --out-path compiled"
   },
   "files": [
