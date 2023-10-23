@@ -8,8 +8,9 @@
     "test": "jest",
     "prepare": "tsc"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "José F. Romaniello",
+  "repository": "github:jfromaniello/har-sanitizer",
+  "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.6",
     "jest": "^29.7.0",
