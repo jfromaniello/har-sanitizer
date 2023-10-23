@@ -6,14 +6,20 @@
   "bin": "bin/sanitize",
   "scripts": {
     "test": "jest",
-    "prepare": "tsc"
+    "prepare": "tsc",
+    "compile": "pkg . --out-path compiled"
   },
+  "files": [
+    "dist",
+    "bin"
+  ],
   "author": "José F. Romaniello",
   "repository": "github:jfromaniello/har-sanitizer",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.6",
     "jest": "^29.7.0",
+    "pkg": "^5.8.1",
     "ts-jest": "^29.1.1",
     "typescript": "^5.2.2"
   },
