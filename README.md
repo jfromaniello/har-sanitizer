@@ -6,9 +6,15 @@ They are commonly used for troubleshooting issues in web applications.
 
 Since they content all the information from the http protocol, they also include generally very sensitive information such as cookies and authorization headers.
 
-This is a library to obfuscate but not to remove the sensitive information. It uses SHA-256 with a randomly generated salt string for each function call.
+This is a library to obfuscate sensitive information.
 
-It can be used in the browser.
+There are currently two modes for cookies and tokens:
+- `obfuscate`: the sanitizer will replace the values of the sensitive information with the string `obfuscated`.
+- `hash`: the sanitizer will calculate a salt for each time its called and replace the sensitive information with hash SHA256 of the value plus the salt.
+
+Password fields are always obfuscated.
+
+This library can be used in the client-side.
 
 ## Usage as library
 
@@ -16,7 +22,10 @@ It can be used in the browser.
 const {sanitize} = require('har-sanitizer');
 // import {sanitize} from 'har-sanitizer';
 
-const sanitized = await sanitize(parsedHAR);
+const sanitized = await sanitize(parsedHAR, {
+  cookies: 'hash',
+  tokens: 'obfuscate'
+});
 ```
 
 ## Usage as cli

@@ -1,6 +1,6 @@
 import simpleCookie from "simple-cookie";
-import { Har, HarEntry, HarHeader } from "./har";
-import { getSHA256Hash, getSalt } from "./util";
+import { Har, HarContent, HarEntry, HarHeader, HarPostData } from "./har";
+import { formatBody, getSHA256Hash, getSalt, isBodySanitizable, parseBody } from "./util";
 import { name as pkgName, version as pkgVersion } from "../package.json";
 
 type SanitizationType = 'hash' | 'obfuscate';
@@ -64,6 +64,69 @@ async function sanitizeResponseSetCookie(h: HarHeader, salt: string, type: Sanit
   return { ...h, value };
 }
 
+/**
+ * this fields are always obfuscated from body
+ */
+const sensitiveFields = [
+  "password",
+  "passwd",
+  "pass",
+  "userPassword",
+  "pwd",
+  'username',
+  'user',
+  'user_id',
+  'user_email',
+  'email',
+  'mail',
+  'login',
+  'login_id',
+  'login_email',
+  'login_email_address',
+  'ip',
+  'ip_address',
+  'ipaddress',
+];
+
+const tokenFieldNames = [
+  'access_token',
+  'id_token',
+  'code',
+  'refresh_token',
+  'token',
+];
+
+async function sanitizeBody<T extends HarPostData | HarContent>(content: T, salt: string, tokensType: SanitizationType): Promise<T> {
+  if (!isBodySanitizable(content)) {
+    return {
+      ...content,
+      text: 'obfuscated',
+    };
+  }
+
+  const parsed = parseBody(content);
+  sensitiveFields.forEach((fieldName) => {
+    if (fieldName in parsed) {
+      parsed[fieldName] = 'obfuscated';
+    }
+  });
+  await Promise.all(tokenFieldNames.map((async (fieldName) => {
+    if (fieldName in parsed) {
+      parsed[fieldName] = tokensType === 'obfuscate' ?
+        'obfuscated' :
+        await getSHA256Hash(salt, parsed[fieldName]);
+    }
+  })));
+  return formatBody(content, parsed);
+}
+
+/**
+ * Sanitizes a given HAR entry by obfuscating or hashing sensitive data.
+ * @param entry - The HAR entry to sanitize.
+ * @param salt - A salt value used for hashing sensitive data.
+ * @param options - An object containing options for sanitization.
+ * @returns A Promise that resolves to the sanitized HAR entry.
+ */
 const sanitizeEntry = async (entry: HarEntry, salt: string, options: SanitizeOptions): Promise<HarEntry> => {
   const responseHeaders = await Promise.all(entry.response.headers.map(async h => {
     if (h.name.toLowerCase() === 'set-cookie') {
@@ -96,13 +159,25 @@ const sanitizeEntry = async (entry: HarEntry, salt: string, options: SanitizeOpt
     return { ...c, value };
   }));
 
+  const requestPostData = entry.request.postData &&
+    await sanitizeBody(entry.request.postData, salt, options.tokens);
+
+  const responseContent = entry.response.content &&
+    await sanitizeBody(entry.response.content, salt, options.tokens);
+
   return {
     ...entry,
-    response: { ...entry.response, headers: responseHeaders, cookies: responseCookies },
-    request: { ...entry.request, headers: requestHeaders, cookies: requestCookies },
+    request: { ...entry.request, headers: requestHeaders, cookies: requestCookies, postData: requestPostData },
+    response: { ...entry.response, headers: responseHeaders, cookies: responseCookies, content: responseContent },
   };
 };
 
+/**
+ * Sanitizes a given HTTP Archive (HAR) object by removing sensitive information from its entries.
+ * @param har The HAR object to sanitize.
+ * @param options An optional object containing the sanitization options.
+ * @returns A Promise that resolves to the sanitized HAR object.
+ */
 export const sanitize = async (
   har: Har,
   options: Partial<SanitizeOptions> = defaultOptions,
