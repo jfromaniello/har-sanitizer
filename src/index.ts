@@ -120,6 +120,27 @@ async function sanitizeBody<T extends HarPostData | HarContent>(content: T, salt
   return formatBody(content, parsed);
 }
 
+async function sanitizeURL(url: string, salt: string, tokensType: SanitizationType): Promise<string> {
+  const parsed = new URL(url);
+  const { searchParams } = parsed;
+
+  sensitiveFields.forEach((fieldName) => {
+    if (searchParams.has(fieldName)) {
+      searchParams.set(fieldName, 'obfuscated');
+    }
+  });
+
+  await Promise.all(tokenFieldNames.map(async (fieldName) => {
+    if (searchParams.has(fieldName)) {
+      searchParams.set(fieldName, tokensType === 'obfuscate' ?
+        'obfuscated' :
+        await getSHA256Hash(salt, searchParams.get(fieldName)!));
+    }
+  }));
+
+  return parsed.href;
+};
+
 /**
  * Sanitizes a given HAR entry by obfuscating or hashing sensitive data.
  * @param entry - The HAR entry to sanitize.
@@ -132,6 +153,12 @@ const sanitizeEntry = async (entry: HarEntry, salt: string, options: SanitizeOpt
     if (h.name.toLowerCase() === 'set-cookie') {
       return await sanitizeResponseSetCookie(h, salt, options.cookies);
     }
+    if (h.name.toLowerCase() === 'location') {
+      return {
+        name: h.name,
+        value: await sanitizeURL(h.value, salt, options.tokens),
+      };
+    }
     return h;
   }));
 
@@ -141,6 +168,12 @@ const sanitizeEntry = async (entry: HarEntry, salt: string, options: SanitizeOpt
     }
     if (h.name.toLowerCase() === 'authorization') {
       return await sanitizeAuthorizationHeader(h, salt, options.tokens);
+    }
+    if (h.name.toLowerCase() === 'referer') {
+      return {
+        name: h.name,
+        value: await sanitizeURL(h.value, salt, options.tokens),
+      };
     }
     return h;
   }));
@@ -162,12 +195,21 @@ const sanitizeEntry = async (entry: HarEntry, salt: string, options: SanitizeOpt
   const requestPostData = entry.request.postData &&
     await sanitizeBody(entry.request.postData, salt, options.tokens);
 
+  const requestURL = entry.request.url &&
+    await sanitizeURL(entry.request.url, salt, options.tokens);
+
   const responseContent = entry.response.content &&
     await sanitizeBody(entry.response.content, salt, options.tokens);
 
   return {
     ...entry,
-    request: { ...entry.request, headers: requestHeaders, cookies: requestCookies, postData: requestPostData },
+    request: {
+      ...entry.request,
+      url: requestURL,
+      headers: requestHeaders,
+      cookies: requestCookies,
+      postData: requestPostData
+    },
     response: { ...entry.response, headers: responseHeaders, cookies: responseCookies, content: responseContent },
   };
 };
