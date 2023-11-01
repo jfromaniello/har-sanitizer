@@ -86,6 +86,8 @@ const sensitiveFields = [
   'ip',
   'ip_address',
   'ipaddress',
+  'client_secret',
+  'secret'
 ];
 
 const tokenFieldNames = [
